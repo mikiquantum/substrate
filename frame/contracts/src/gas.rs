@@ -79,6 +79,8 @@ pub struct GasMeter<T: Config> {
 	gas_limit: Weight,
 	/// Amount of gas left from initial gas limit. Can reach zero.
 	gas_left: Weight,
+	/// Due to `adjust_gas` the `gas_left` can temporarily dip below its final value.
+	gas_lowest_dip: Option<Weight>,
 	_phantom: PhantomData<T>,
 	#[cfg(test)]
 	tokens: Vec<ErasedToken>,
@@ -92,6 +94,7 @@ where
 		GasMeter {
 			gas_limit,
 			gas_left: gas_limit,
+			gas_lowest_dip: None,
 			_phantom: PhantomData,
 			#[cfg(test)]
 			tokens: Vec::new(),
@@ -163,6 +166,7 @@ where
 	/// This is when a maximum a priori amount was charged and then should be partially
 	/// refunded to match the actual amount.
 	pub fn adjust_gas<Tok: Token<T>>(&mut self, charged_amount: ChargedAmount, token: Tok) {
+		self.gas_lowest_dip = Some(self.lowest_dip());
 		let adjustment = charged_amount.0.saturating_sub(token.weight());
 		self.gas_left = self.gas_left.saturating_add(adjustment).min(self.gas_limit);
 	}
@@ -176,9 +180,12 @@ where
 		self.gas_left = self.gas_left.saturating_add(amount.0).min(self.gas_limit)
 	}
 
-	/// Returns how much gas was used.
-	pub fn gas_spent(&self) -> Weight {
-		self.gas_limit - self.gas_left
+	/// Returns the amount of gas that is required to run the same call.
+	///
+	/// This can be different from `gas_spent` because due to `adjust_gas` the amount of
+	/// spent gas can temporarily drop and be refunded later.
+	pub fn gas_required(&self) -> Weight {
+		self.gas_limit - self.lowest_dip()
 	}
 
 	/// Returns how much gas left from the initial budget.
@@ -202,6 +209,14 @@ where
 		result
 			.map(|_| post_info)
 			.map_err(|e| DispatchErrorWithPostInfo { post_info, error: e.into().error })
+	}
+
+	fn gas_spent(&self) -> Weight {
+		self.gas_limit - self.gas_left
+	}
+
+	fn lowest_dip(&self) -> Weight {
+		self.gas_lowest_dip.map(|d| d.min(self.gas_left)).unwrap_or(self.gas_left)
 	}
 
 	#[cfg(test)]

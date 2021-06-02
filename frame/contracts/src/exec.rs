@@ -28,12 +28,13 @@ use sp_std::{
 };
 use sp_runtime::{Perbill, traits::{Convert, Saturating}};
 use frame_support::{
-	dispatch::{DispatchResult, DispatchError},
+	dispatch::{DispatchResult, DispatchError, DispatchResultWithPostInfo, Dispatchable},
 	storage::{with_transaction, TransactionOutcome},
-	traits::{ExistenceRequirement, Currency, Time, Randomness, Get},
+	traits::{ExistenceRequirement, Currency, Time, Randomness, Get, OriginTrait, Filter},
 	weights::Weight,
 	ensure, DefaultNoBound,
 };
+use frame_system::RawOrigin;
 use pallet_contracts_primitives::{ExecReturnValue};
 use smallvec::{SmallVec, Array};
 
@@ -308,6 +309,9 @@ pub trait Ext: sealing::Sealed {
 	///
 	/// Returns `true` if debug message recording is enabled. Otherwise `false` is returned.
 	fn append_debug_buffer(&mut self, msg: &str) -> bool;
+
+	/// Call some dispatchable and return the result.
+	fn call_runtime(&self, call: <Self::T as Config>::Call) -> DispatchResultWithPostInfo;
 }
 
 /// Describes the different functions that can be exported by an [`Executable`].
@@ -1291,6 +1295,12 @@ where
 		} else {
 			false
 		}
+	}
+
+	fn call_runtime(&self, call: <Self::T as Config>::Call) -> DispatchResultWithPostInfo {
+		let mut origin: T::Origin = RawOrigin::Signed(self.address().clone()).into();
+		origin.add_filter(T::CallFilter::filter);
+		call.dispatch(origin)
 	}
 }
 
