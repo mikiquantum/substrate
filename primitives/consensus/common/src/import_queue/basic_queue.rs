@@ -544,6 +544,7 @@ mod tests {
 					hash,
 					header: Some(header),
 					body: None,
+					indexed_body: None,
 					justifications: None,
 					origin: None,
 					allow_missing_state: false,
