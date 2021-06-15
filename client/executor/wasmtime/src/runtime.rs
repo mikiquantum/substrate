@@ -18,6 +18,9 @@
 
 //! Defines the compiled Wasm runtime that uses Wasmtime internally.
 
+#[cfg(target_os = "macos")]
+mod mach_memory;
+
 use crate::host::HostState;
 use crate::imports::{Imports, resolve_imports};
 use crate::instance_wrapper::{InstanceWrapper, EntryPoint};
@@ -235,6 +238,11 @@ directory = \"{cache_dir}\"
 fn common_config() -> wasmtime::Config {
 	let mut config = wasmtime::Config::new();
 	config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
+	#[cfg(target_os = "macos")]
+	{
+		config.static_memory_maximum_size(1024 * 1024 * 1024);
+		config.with_host_memory(Arc::new(mach_memory::MachAllocator::new().unwrap()));
+	}
 	config
 }
 
