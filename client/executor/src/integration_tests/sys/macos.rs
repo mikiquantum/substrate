@@ -22,9 +22,8 @@ use std::{convert::TryInto, mem::MaybeUninit};
 use mach::{
     kern_return::KERN_SUCCESS,
     traps::mach_task_self,
-    vm::{mach_vm_allocate, mach_vm_purgable_control, mach_vm_region},
+    vm::mach_vm_region,
     vm_page_size::vm_page_shift,
-    vm_purgable::{VM_PURGABLE_EMPTY, VM_PURGABLE_NONVOLATILE, VM_PURGABLE_SET_STATE},
     vm_region::{vm_region_extended_info, vm_region_info_t, VM_REGION_EXTENDED_INFO},
     vm_types::{mach_vm_address_t, mach_vm_size_t},
 };

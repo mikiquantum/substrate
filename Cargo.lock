@@ -7534,6 +7534,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "libc",
  "log",
+ "mach",
  "parity-scale-codec",
  "parity-wasm 0.42.2",
  "sc-executor-common",

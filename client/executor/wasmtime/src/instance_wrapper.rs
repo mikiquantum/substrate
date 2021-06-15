@@ -449,7 +449,40 @@ impl InstanceWrapper {
 						});
 					}
 				}
+			} else if #[cfg(target_os = "macos")] {
+				use mach::vm_purgable::{VM_PURGABLE_EMPTY, VM_PURGABLE_NONVOLATILE};
+				self.purge_control(VM_PURGABLE_EMPTY);
+				self.purge_control(VM_PURGABLE_NONVOLATILE);
 			}
+		}
+	}
+
+	#[cfg(target_os = "macos")]
+	fn purge_control(&self, state: libc::c_int) {
+		use std::sync::Once;
+		use mach::{
+			kern_return::KERN_SUCCESS,
+			traps::mach_task_self,
+			vm::mach_vm_purgable_control,
+			vm_purgable::{VM_PURGABLE_SET_STATE},
+		};
+		let mut old_state = state;
+		let result = unsafe {
+			mach_vm_purgable_control(
+				mach_task_self(),
+				self.memory.data_ptr() as _,
+				VM_PURGABLE_SET_STATE,
+				&mut old_state,
+			)
+		};
+		if result != KERN_SUCCESS {
+			static LOGGED: Once = Once::new();
+			LOGGED.call_once(|| {
+				log::warn!("mach_vm_purgeable_control({}) failed: {}", state, result);
+				println!("mach_vm_purgeable_control({}) failed: {}", state, result);
+			});
+		} else {
+			println!("mach_vm_purgeable_control: {} -> {}", old_state, state);
 		}
 	}
 }
